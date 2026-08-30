@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Every field here (creditSecondsRemaining, etc.) is only ever written by Cloud
+    // Functions via the Admin SDK, which bypasses these rules entirely. The client can read
+    // its own doc to render remaining credit, but has zero write path - clearing app data or
+    // patching the client can't forge a credit balance.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+
+      match /usageEvents/{eventId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Idempotency ledger for verifyPurchase (one doc per purchase token, so a retried call
+    // can never grant the same purchase's credit twice). Never exposed to clients.
+    match /purchaseTokens/{token} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

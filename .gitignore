@@ -1,0 +1,22 @@
+*.iml
+.gradle
+/local.properties
+.idea/
+.DS_Store
+/build
+app/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.hprof
+app/google-services.json
+
+# Cloud Functions
+functions/node_modules/
+functions/lib/
+
+# Release signing - never commit these, this repo is public
+*.jks
+*.keystore
+keystore.properties

@@ -1,75 +1,52 @@
 package com.dialect.voice.api
 
-import com.dialect.voice.domain.ChatMessage
-import com.dialect.voice.domain.OpenAIRequest
-import com.dialect.voice.domain.OpenAIResponse
-import com.dialect.voice.domain.WhisperResponse
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
+import kotlinx.coroutines.tasks.await
 import java.io.File
+import android.util.Base64
 
-class OpenAIClient(private val apiKey: String) {
-    private val client = HttpClient(Android) {
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-            })
-        }
-        install(Logging) {
-            level = LogLevel.INFO
-        }
-    }
+// Thrown when the chatCompletion Cloud Function rejects the call because the caller's text
+// balance can't cover it. Separate from NoCreditException (voice) - see
+// functions/src/lib/usage.ts for why text and voice are metered independently.
+class NoTextCreditException(val remainingSeconds: Int) : Exception("Not enough text credit")
 
-    suspend fun convertToDialect(
-        text: String,
-        systemPrompt: String
-    ): String {
-        val request = OpenAIRequest(
-            messages = listOf(
-                ChatMessage(role = "system", content = systemPrompt),
-                ChatMessage(role = "user", content = text)
-            )
+// Both calls go through Cloud Functions now (chatCompletion / transcribeAudio) - the OpenAI
+// key lives server-side in Secret Manager, never in the APK. Method signatures are
+// unchanged from the old direct-HTTP version so ChatViewModel's call sites don't need to
+// change shape, only the constructor wiring in MainActivity does.
+class OpenAIClient(private val functions: FirebaseFunctions) {
+
+    suspend fun convertToDialect(text: String, systemPrompt: String): String {
+        val data = hashMapOf(
+            "userText" to text,
+            "systemPrompt" to systemPrompt
         )
-
-        val response: OpenAIResponse = client.post("https://api.openai.com/v1/chat/completions") {
-            bearerAuth(apiKey)
-            contentType(ContentType.Application.Json)
-            setBody(request)
-        }.body()
-
-        return response.choices.firstOrNull()?.message?.content 
-            ?: throw Exception("No response from OpenAI")
+        try {
+            val result = functions.getHttpsCallable("chatCompletion").call(data).await()
+            @Suppress("UNCHECKED_CAST")
+            val map = result.getData() as? Map<String, Any?>
+            return map?.get("text") as? String ?: throw Exception("No response from OpenAI")
+        } catch (e: FirebaseFunctionsException) {
+            if (e.code == FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED) {
+                @Suppress("UNCHECKED_CAST")
+                val details = e.details as? Map<String, Any?>
+                val remainingSeconds = (details?.get("remainingSeconds") as? Number)?.toInt() ?: 0
+                throw NoTextCreditException(remainingSeconds)
+            }
+            throw e
+        }
     }
 
     suspend fun transcribeAudio(audioFile: File): String {
-        // Note: Whisper API requires multipart/form-data upload
-        // This is a simplified version - you may need to use a custom implementation
-        // for proper multipart file upload with Ktor
-        
-        return try {
-            val response: WhisperResponse = client.post("https://api.openai.com/v1/audio/transcriptions") {
-                bearerAuth(apiKey)
-                // TODO: Implement proper multipart upload
-                // For now, return empty string as placeholder
-            }.body()
-            response.text
-        } catch (e: Exception) {
-            throw Exception("Transcription failed: ${e.message}")
-        }
-    }
-
-    fun close() {
-        client.close()
+        val audioBase64 = Base64.encodeToString(audioFile.readBytes(), Base64.NO_WRAP)
+        val data = hashMapOf(
+            "audioBase64" to audioBase64,
+            "filename" to audioFile.name
+        )
+        val result = functions.getHttpsCallable("transcribeAudio").call(data).await()
+        @Suppress("UNCHECKED_CAST")
+        val map = result.getData() as? Map<String, Any?>
+        return map?.get("text") as? String ?: throw Exception("No transcript returned")
     }
 }
