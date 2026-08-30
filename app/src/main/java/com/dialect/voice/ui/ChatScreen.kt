@@ -116,6 +116,9 @@ fun ChatScreen(
     // someone's had a chance to try the app. The paywall only ever appears reactively, via
     // the "Buy credit" links under a no-credit reply or the easter egg.
     var showPaywall by remember { mutableStateOf(false) }
+    LaunchedEffect(showPaywall) {
+        if (showPaywall) billingManager.ensureProductLoaded()
+    }
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
 

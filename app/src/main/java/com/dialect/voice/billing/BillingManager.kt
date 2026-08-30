@@ -34,6 +34,8 @@ import kotlinx.coroutines.tasks.await
 // -> rebuy loop end to end. Swap back to dialect_voice_credit_30min before going live.
 const val CREDIT_PRODUCT_ID = "one_minute_test"
 
+private const val MAX_QUERY_ATTEMPTS = 5
+
 sealed class PurchaseUiState {
     data object Idle : PurchaseUiState()
     data object Connecting : PurchaseUiState()
@@ -114,7 +116,18 @@ class BillingManager(
         if (billingConnected && authReady) reconcilePendingPurchases()
     }
 
-    private fun queryProductDetails() {
+    /**
+     * Re-run the product query if we still don't have a price - called when the paywall
+     * opens. The query at connect time can come back empty on a flaky network and there's
+     * otherwise nothing to retrigger it, which left the paywall stuck on "...".
+     */
+    fun ensureProductLoaded() {
+        if (productDetails == null) {
+            if (billingConnected) queryProductDetails() else startConnection()
+        }
+    }
+
+    private fun queryProductDetails(attempt: Int = 1) {
         val product = QueryProductDetailsParams.Product.newBuilder()
             .setProductId(CREDIT_PRODUCT_ID)
             .setProductType(BillingClient.ProductType.INAPP)
@@ -130,11 +143,11 @@ class BillingManager(
             val productDetailsList = queryProductDetailsResult.productDetailsList
             android.util.Log.i(
                 "BillingManager",
-                "queryProductDetails: code=${billingResult.responseCode} msg=${billingResult.debugMessage} " +
-                    "count=${productDetailsList.size} ids=${productDetailsList.map { it.productId }}"
+                "queryProductDetails(attempt $attempt): code=${billingResult.responseCode} " +
+                    "msg=${billingResult.debugMessage} count=${productDetailsList.size} " +
+                    "ids=${productDetailsList.map { it.productId }}"
             )
             val details = productDetailsList.firstOrNull()
-            productDetails = details
 
             // Billing Library 8: a one-time product created with Play's newer "purchase
             // options" model exposes its price only via oneTimePurchaseOfferDetailsList -
@@ -142,13 +155,28 @@ class BillingManager(
             // is why the paywall was stuck showing "...".
             val offer = details?.oneTimePurchaseOfferDetails
                 ?: details?.oneTimePurchaseOfferDetailsList?.firstOrNull()
-            oneTimeOfferToken = offer?.offerToken?.takeIf { it.isNotEmpty() }
-            _priceText.value = offer?.formattedPrice
-            android.util.Log.i(
-                "BillingManager",
-                "price=${offer?.formattedPrice} hasOfferToken=${oneTimeOfferToken != null} " +
-                    "offerListSize=${details?.oneTimePurchaseOfferDetailsList?.size}"
-            )
+
+            if (offer?.formattedPrice != null) {
+                productDetails = details
+                oneTimeOfferToken = offer.offerToken?.takeIf { it.isNotEmpty() }
+                _priceText.value = offer.formattedPrice
+                android.util.Log.i(
+                    "BillingManager",
+                    "price=${offer.formattedPrice} hasOfferToken=${oneTimeOfferToken != null} " +
+                        "offerListSize=${details?.oneTimePurchaseOfferDetailsList?.size}"
+                )
+            } else if (attempt < MAX_QUERY_ATTEMPTS) {
+                // Empty/failed result (usually a transient network blip) - back off and retry
+                // rather than leaving the paywall on "..." forever.
+                val delayMs = 1500L * attempt
+                android.util.Log.i("BillingManager", "no price yet - retrying in ${delayMs}ms")
+                scope.launch {
+                    kotlinx.coroutines.delay(delayMs)
+                    queryProductDetails(attempt + 1)
+                }
+            } else {
+                android.util.Log.w("BillingManager", "gave up loading price after $attempt attempts")
+            }
         }
     }
 
