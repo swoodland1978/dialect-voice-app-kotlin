@@ -30,9 +30,7 @@ import kotlinx.coroutines.tasks.await
 // credit just keeps stacking. No subscription, no separate unlock purchase. The price itself
 // is never hardcoded anywhere in the app - it's read live from Play Billing (see priceText
 // below) so the UI can never go stale when the price is changed in Play Console.
-// TEMPORARY: pointed at the cheap "one_minute_test" product to verify the run-out -> upsell
-// -> rebuy loop end to end. Swap back to dialect_voice_credit_30min before going live.
-const val CREDIT_PRODUCT_ID = "one_minute_test"
+const val CREDIT_PRODUCT_ID = "dialect_voice_credit_30min"
 
 private const val MAX_QUERY_ATTEMPTS = 5
 
