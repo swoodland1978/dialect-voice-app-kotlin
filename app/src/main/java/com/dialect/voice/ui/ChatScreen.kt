@@ -528,18 +528,28 @@ fun AudioControl(
                 )
             }
             AudioState.NO_CREDIT -> {
-                IconButton(onClick = onPaywallClick, modifier = Modifier.size(28.dp)) {
+                // Whole row is the tap target, not just the icon - text and icon both open
+                // the paywall.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onPaywallClick)
+                        .padding(4.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Filled.VolumeUp,
                         contentDescription = "Buy credit to unlock voice replies",
+                        modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "Buy credit to unlock voice",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
-                Text(
-                    "Buy credit to unlock voice",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
             }
         }
     }

@@ -24,7 +24,7 @@ const RAW_DIR = path.join(__dirname, "..", "app", "src", "main", "res", "raw");
 // shown in the chat bubble comes from that file, this just has to say the same thing.
 const CLIPS = [
   { dialect: "geordie", kind: "welcome", voiceId: "lYz97gZSO1IVncLkczs4",
-    text: "Now then, welcome to the app - howay, what can I do for ya?" },
+    text: "Now then, welcome to WhyAI - howay, what can I do for ya?" },
   { dialect: "geordie", kind: "switch", voiceId: "lYz97gZSO1IVncLkczs4",
     text: "Reet, you're listening to Geordie now, pet." },
   { dialect: "geordie", kind: "upsell", voiceId: "lYz97gZSO1IVncLkczs4",
@@ -39,7 +39,7 @@ const CLIPS = [
     text: "Whoop, whoop, whoopedy whoopy woopersville!" },
 
   { dialect: "scouse", kind: "welcome", voiceId: "m3ERpbBFjTAqD5PJozID",
-    text: "Alright la, welcome to the app - what's the craic, how can I help ya?" },
+    text: "Alright la, welcome to WhyAI - what's the craic, how can I help ya?" },
   { dialect: "scouse", kind: "switch", voiceId: "m3ERpbBFjTAqD5PJozID",
     text: "Sound - you're listening to Scouse now, la." },
   { dialect: "scouse", kind: "upsell", voiceId: "m3ERpbBFjTAqD5PJozID",
@@ -54,7 +54,7 @@ const CLIPS = [
     text: "Whoop, whoop, whoopedy whoopy woopersville!" },
 
   { dialect: "cockney", kind: "welcome", voiceId: "EQx6HGDYjkDpcli6vorJ",
-    text: "Alright guv, welcome to the app - what can I do ya for?" },
+    text: "Alright guv, welcome to WhyAI - what can I do ya for?" },
   { dialect: "cockney", kind: "switch", voiceId: "EQx6HGDYjkDpcli6vorJ",
     text: "You're now earwigging Cockney, me old china." },
   { dialect: "cockney", kind: "upsell", voiceId: "EQx6HGDYjkDpcli6vorJ",
@@ -69,7 +69,7 @@ const CLIPS = [
     text: "Whoop, whoop, whoopedy whoopy woopersville!" },
 
   { dialect: "glaswegian", kind: "welcome", voiceId: "s07KcA1KjfdDAsyJ87HW",
-    text: "Welcome to the app pal, whats the hampden." },
+    text: "Welcome to WhyAI pal, whats the hampden." },
   { dialect: "glaswegian", kind: "switch", voiceId: "s07KcA1KjfdDAsyJ87HW",
     text: "Right, yer listening tae Glaswegian noo, pal." },
   { dialect: "glaswegian", kind: "upsell", voiceId: "s07KcA1KjfdDAsyJ87HW",
@@ -84,7 +84,7 @@ const CLIPS = [
     text: "Whoop, whoop, whoopedy whoopy woopersville!" },
 
   { dialect: "irish", kind: "welcome", voiceId: "UwtFVYnvYG6hxAbc4I6T",
-    text: "Story, welcome to the app - what's the craic, how can I help ya?" },
+    text: "Story, welcome to WhyAI - what's the craic, how can I help ya?" },
   { dialect: "irish", kind: "switch", voiceId: "UwtFVYnvYG6hxAbc4I6T",
     text: "Grand, you're listening to Irish now, sure look." },
   { dialect: "irish", kind: "upsell", voiceId: "UwtFVYnvYG6hxAbc4I6T",
@@ -99,7 +99,7 @@ const CLIPS = [
     text: "Whoop, whoop, whoopedy whoopy woopersville!" },
 
   { dialect: "welsh", kind: "welcome", voiceId: "DikmR0aoFXAp1A3NcovW",
-    text: "Now then bach, welcome to the app - what can I do for you, love?" },
+    text: "Now then bach, welcome to WhyAI - what can I do for you, love?" },
   { dialect: "welsh", kind: "switch", voiceId: "DikmR0aoFXAp1A3NcovW",
     text: "Tidy - you're listening to Welsh now, isn't it." },
   { dialect: "welsh", kind: "upsell", voiceId: "DikmR0aoFXAp1A3NcovW",
@@ -114,7 +114,7 @@ const CLIPS = [
     text: "Whoop, whoop, whoopedy whoopy woopersville!" },
 
   { dialect: "indian", kind: "welcome", voiceId: "WtIqwF5CWCkaZSGmvsm1",
-    text: "Arre, welcome to the app, yaar - what can I do for you?" },
+    text: "Arre, welcome to WhyAI, yaar - what can I do for you?" },
   { dialect: "indian", kind: "switch", voiceId: "WtIqwF5CWCkaZSGmvsm1",
     text: "Achha, you're listening to Indian English now, yaar." },
   { dialect: "indian", kind: "upsell", voiceId: "WtIqwF5CWCkaZSGmvsm1",
@@ -129,7 +129,7 @@ const CLIPS = [
     text: "Whoop, whoop, whoopedy whoopy woopersville!" },
 
   { dialect: "australian", kind: "welcome", voiceId: "9B2Vd5yQ7rKaqNmzGdy1",
-    text: "G'day, welcome to the app, mate - what can I do ya for?" },
+    text: "G'day, welcome to WhyAI, mate - what can I do ya for?" },
   { dialect: "australian", kind: "switch", voiceId: "9B2Vd5yQ7rKaqNmzGdy1",
     text: "Righto, you're listening to Australian now, mate." },
   { dialect: "australian", kind: "upsell", voiceId: "9B2Vd5yQ7rKaqNmzGdy1",

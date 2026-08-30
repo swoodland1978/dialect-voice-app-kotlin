@@ -25,7 +25,7 @@ data class PresetGreeting(
 val PRESET_AUDIO: Map<String, PresetGreeting> = mapOf(
     "geordie" to PresetGreeting(
         welcome = PresetPrompt(
-            "Now then, welcome to the app - howay, what can I do for ya?",
+            "Now then, welcome to WhyAI - howay, what can I do for ya?",
             R.raw.welcome_geordie
         ),
         switch = PresetPrompt(
@@ -47,7 +47,7 @@ val PRESET_AUDIO: Map<String, PresetGreeting> = mapOf(
     ),
     "scouse" to PresetGreeting(
         welcome = PresetPrompt(
-            "Alright la, welcome to the app - what's the craic, how can I help ya?",
+            "Alright la, welcome to WhyAI - what's the craic, how can I help ya?",
             R.raw.welcome_scouse
         ),
         switch = PresetPrompt(
@@ -69,7 +69,7 @@ val PRESET_AUDIO: Map<String, PresetGreeting> = mapOf(
     ),
     "cockney" to PresetGreeting(
         welcome = PresetPrompt(
-            "Alright guv, welcome to the app - what can I do ya for?",
+            "Alright guv, welcome to WhyAI - what can I do ya for?",
             R.raw.welcome_cockney
         ),
         switch = PresetPrompt(
@@ -91,7 +91,7 @@ val PRESET_AUDIO: Map<String, PresetGreeting> = mapOf(
     ),
     "glaswegian" to PresetGreeting(
         welcome = PresetPrompt(
-            "Welcome to the app pal, whats the hampden.",
+            "Welcome to WhyAI pal, whats the hampden.",
             R.raw.welcome_glaswegian
         ),
         switch = PresetPrompt(
@@ -113,7 +113,7 @@ val PRESET_AUDIO: Map<String, PresetGreeting> = mapOf(
     ),
     "irish" to PresetGreeting(
         welcome = PresetPrompt(
-            "Story, welcome to the app - what's the craic, how can I help ya?",
+            "Story, welcome to WhyAI - what's the craic, how can I help ya?",
             R.raw.welcome_irish
         ),
         switch = PresetPrompt(
@@ -135,7 +135,7 @@ val PRESET_AUDIO: Map<String, PresetGreeting> = mapOf(
     ),
     "welsh" to PresetGreeting(
         welcome = PresetPrompt(
-            "Now then bach, welcome to the app - what can I do for you, love?",
+            "Now then bach, welcome to WhyAI - what can I do for you, love?",
             R.raw.welcome_welsh
         ),
         switch = PresetPrompt(
@@ -157,7 +157,7 @@ val PRESET_AUDIO: Map<String, PresetGreeting> = mapOf(
     ),
     "indian" to PresetGreeting(
         welcome = PresetPrompt(
-            "Arre, welcome to the app, yaar - what can I do for you?",
+            "Arre, welcome to WhyAI, yaar - what can I do for you?",
             R.raw.welcome_indian
         ),
         switch = PresetPrompt(
@@ -179,7 +179,7 @@ val PRESET_AUDIO: Map<String, PresetGreeting> = mapOf(
     ),
     "australian" to PresetGreeting(
         welcome = PresetPrompt(
-            "G'day, welcome to the app, mate - what can I do ya for?",
+            "G'day, welcome to WhyAI, mate - what can I do ya for?",
             R.raw.welcome_australian
         ),
         switch = PresetPrompt(
