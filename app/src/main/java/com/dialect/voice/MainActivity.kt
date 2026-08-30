@@ -57,6 +57,9 @@ class MainActivity : ComponentActivity() {
                         val uid = currentUser?.uid
                         if (uid != null) {
                             userRepository.observe(uid)
+                            // Billing verification needs an auth token - let BillingManager
+                            // reconcile any unconsumed purchase now that we have one.
+                            billingManager.onAuthReady()
                         } else {
                             userRepository.stopObserving()
                         }

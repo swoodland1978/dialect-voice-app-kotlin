@@ -13,7 +13,9 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,6 +63,17 @@ class BillingManager(
     val priceText: StateFlow<String?> = _priceText.asStateFlow()
 
     private var productDetails: ProductDetails? = null
+    // Offer token for the one-time purchase offer, when the product uses Play's newer
+    // "purchase options" model. Null/empty for legacy backwards-compatible products.
+    private var oneTimeOfferToken: String? = null
+
+    // reconcilePendingPurchases() calls verifyPurchase, which needs a Firebase auth token, so
+    // it can only run once BOTH billing is connected AND the user is signed in - the two
+    // happen independently (billing connects in onCreate, sign-in may be later). Without this
+    // gate, a leftover purchase gets verified before auth is ready and the call fails with
+    // "Sign in required".
+    private var billingConnected = false
+    private var authReady = false
 
     private val billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
@@ -70,23 +83,35 @@ class BillingManager(
     fun startConnection() {
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
-                android.util.Log.d(
+                android.util.Log.i(
                     "BillingManager",
                     "onBillingSetupFinished: code=${billingResult.responseCode} msg=${billingResult.debugMessage}"
                 )
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    billingConnected = true
                     queryProductDetails()
-                    reconcilePendingPurchases()
+                    maybeReconcile()
                 } else {
                     _purchaseState.value = PurchaseUiState.Error("Billing unavailable: ${billingResult.debugMessage}")
                 }
             }
 
             override fun onBillingServiceDisconnected() {
-                android.util.Log.d("BillingManager", "onBillingServiceDisconnected")
+                android.util.Log.i("BillingManager", "onBillingServiceDisconnected")
+                billingConnected = false
                 // BillingClient reconnects automatically the next time it's needed.
             }
         })
+    }
+
+    /** Called by the UI once Firebase Auth reports a signed-in user. */
+    fun onAuthReady() {
+        authReady = true
+        maybeReconcile()
+    }
+
+    private fun maybeReconcile() {
+        if (billingConnected && authReady) reconcilePendingPurchases()
     }
 
     private fun queryProductDetails() {
@@ -103,14 +128,27 @@ class BillingManager(
         // list directly - see the migration guide for PBL 7 -> 8.
         billingClient.queryProductDetailsAsync(params) { billingResult, queryProductDetailsResult ->
             val productDetailsList = queryProductDetailsResult.productDetailsList
-            android.util.Log.d(
+            android.util.Log.i(
                 "BillingManager",
                 "queryProductDetails: code=${billingResult.responseCode} msg=${billingResult.debugMessage} " +
                     "count=${productDetailsList.size} ids=${productDetailsList.map { it.productId }}"
             )
             val details = productDetailsList.firstOrNull()
             productDetails = details
-            _priceText.value = details?.oneTimePurchaseOfferDetails?.formattedPrice
+
+            // Billing Library 8: a one-time product created with Play's newer "purchase
+            // options" model exposes its price only via oneTimePurchaseOfferDetailsList -
+            // the legacy singular oneTimePurchaseOfferDetails comes back null for it, which
+            // is why the paywall was stuck showing "...".
+            val offer = details?.oneTimePurchaseOfferDetails
+                ?: details?.oneTimePurchaseOfferDetailsList?.firstOrNull()
+            oneTimeOfferToken = offer?.offerToken?.takeIf { it.isNotEmpty() }
+            _priceText.value = offer?.formattedPrice
+            android.util.Log.i(
+                "BillingManager",
+                "price=${offer?.formattedPrice} hasOfferToken=${oneTimeOfferToken != null} " +
+                    "offerListSize=${details?.oneTimePurchaseOfferDetailsList?.size}"
+            )
         }
     }
 
@@ -127,13 +165,28 @@ class BillingManager(
             .setProductDetailsParamsList(listOf(productDetailsParams))
             .build()
 
-        billingClient.launchBillingFlow(activity, flowParams)
+        val launchResult = billingClient.launchBillingFlow(activity, flowParams)
+        android.util.Log.i(
+            "BillingManager",
+            "launchBillingFlow: code=${launchResult.responseCode} msg=${launchResult.debugMessage}"
+        )
     }
 
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: MutableList<Purchase>?) {
+        android.util.Log.i(
+            "BillingManager",
+            "onPurchasesUpdated: code=${billingResult.responseCode} msg=${billingResult.debugMessage} " +
+                "purchases=${purchases?.size ?: 0}"
+        )
         when (billingResult.responseCode) {
-            BillingClient.BillingResponseCode.OK -> purchases?.forEach { handlePurchase(it) }
+            BillingClient.BillingResponseCode.OK -> purchases?.forEach { handlePurchase(it, userInitiated = true) }
             BillingClient.BillingResponseCode.USER_CANCELED -> _purchaseState.value = PurchaseUiState.Idle
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
+                // A prior purchase was never consumed (e.g. verify failed, or the app died
+                // mid-flow). Finish it off so the product can be bought again.
+                android.util.Log.i("BillingManager", "ITEM_ALREADY_OWNED - reconciling to clear it")
+                reconcilePendingPurchases()
+            }
             else -> _purchaseState.value = PurchaseUiState.Error(billingResult.debugMessage)
         }
     }
@@ -143,18 +196,26 @@ class BillingManager(
             .setProductType(BillingClient.ProductType.INAPP)
             .build()
         billingClient.queryPurchasesAsync(params) { _, purchases ->
+            android.util.Log.i("BillingManager", "reconcile: ${purchases.size} outstanding purchase(s)")
             // A consumable that hasn't been consumed yet still shows up here (e.g. the app
             // was killed between purchase and consume) - needs finishing off.
             purchases
                 .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
-                .forEach { handlePurchase(it) }
+                .forEach { handlePurchase(it, userInitiated = false) }
         }
     }
 
-    private fun handlePurchase(purchase: Purchase) {
+    // userInitiated: true when this came from the user tapping Buy (drive the purchase UI);
+    // false for background reconcile (stay quiet - don't flip the paywall into Verifying/etc).
+    private fun handlePurchase(purchase: Purchase, userInitiated: Boolean) {
         if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
+        if (FirebaseAuth.getInstance().currentUser == null) {
+            // Can't verify without an auth token. Reconcile will re-run from onAuthReady().
+            android.util.Log.i("BillingManager", "handlePurchase deferred - not signed in yet")
+            return
+        }
 
-        _purchaseState.value = PurchaseUiState.Verifying
+        if (userInitiated) _purchaseState.value = PurchaseUiState.Verifying
         scope.launch {
             try {
                 val productId = purchase.products.firstOrNull() ?: CREDIT_PRODUCT_ID
@@ -163,20 +224,39 @@ class BillingManager(
                     "productId" to productId
                 )
                 functions.getHttpsCallable("verifyPurchase").call(data).await()
-
-                // Consumable - consuming both fulfils it and frees it up to be bought again.
-                val consumeParams = ConsumeParams.newBuilder()
-                    .setPurchaseToken(purchase.purchaseToken)
-                    .build()
-                billingClient.consumeAsync(consumeParams) { _, _ -> }
-
-                _purchaseState.value = PurchaseUiState.Success
+                consume(purchase, "verified")
+                if (userInitiated) _purchaseState.value = PurchaseUiState.Success
             } catch (e: Exception) {
-                // Verification failed server-side - deliberately do NOT consume locally. Play
-                // keeps the purchase pending and auto-refunds it after 3 days if this never
-                // succeeds, rather than us granting credit on an unverified purchase.
-                _purchaseState.value = PurchaseUiState.Error(e.message ?: "Purchase verification failed")
+                val code = (e as? FirebaseFunctionsException)?.code
+                if (code == FirebaseFunctionsException.Code.FAILED_PRECONDITION) {
+                    // Google reports this purchase isn't in a purchased state - refunded,
+                    // cancelled, or already consumed server-side. No credit to grant, but
+                    // consume it so it stops blocking new purchases.
+                    android.util.Log.w("BillingManager", "verify FAILED_PRECONDITION - consuming to unstick: ${e.message}")
+                    consume(purchase, "voided")
+                    if (userInitiated) _purchaseState.value = PurchaseUiState.Idle
+                } else {
+                    // Transient/config failure (network, Publisher API not set up, etc.) -
+                    // do NOT consume; leave the purchase for reconcile to retry. Play
+                    // auto-refunds an unconsumed purchase after 3 days.
+                    android.util.Log.w("BillingManager", "verify failed (code=$code) - leaving for retry: ${e.message}")
+                    if (userInitiated) {
+                        _purchaseState.value = PurchaseUiState.Error(e.message ?: "Purchase verification failed")
+                    }
+                }
             }
+        }
+    }
+
+    private fun consume(purchase: Purchase, reason: String) {
+        val consumeParams = ConsumeParams.newBuilder()
+            .setPurchaseToken(purchase.purchaseToken)
+            .build()
+        billingClient.consumeAsync(consumeParams) { result, _ ->
+            android.util.Log.i(
+                "BillingManager",
+                "consume ($reason): code=${result.responseCode} msg=${result.debugMessage}"
+            )
         }
     }
 

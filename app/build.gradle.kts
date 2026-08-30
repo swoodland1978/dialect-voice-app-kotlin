@@ -30,8 +30,8 @@ android {
         applicationId = "com.dialect.voice"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.7"
+        versionCode = 13
+        versionName = "1.10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -71,6 +71,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

@@ -44,6 +44,13 @@ fun SignInScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                "v${com.dialect.voice.BuildConfig.VERSION_NAME} (${com.dialect.voice.BuildConfig.VERSION_CODE})",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

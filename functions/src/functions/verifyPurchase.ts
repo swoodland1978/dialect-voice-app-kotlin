@@ -23,6 +23,13 @@ export const verifyPurchase = onCall<VerifyPurchaseRequest>(
     }
     const uid = request.auth.uid;
     const { purchaseToken, productId } = request.data ?? {};
+    console.log("verifyPurchase called", {
+      uid,
+      productId,
+      expectedProductId: CREDIT_PRODUCT_ID,
+      hasToken: !!purchaseToken,
+      tokenLen: purchaseToken?.length ?? 0,
+    });
     if (!purchaseToken || !productId) {
       throw new HttpsError("invalid-argument", "purchaseToken and productId are required");
     }
@@ -33,7 +40,9 @@ export const verifyPurchase = onCall<VerifyPurchaseRequest>(
     let info;
     try {
       info = await fetchProductPurchase(purchaseToken, productId);
+      console.log("fetchProductPurchase ok", info);
     } catch (e) {
+      console.error("fetchProductPurchase failed", (e as Error).message, e);
       throw new HttpsError("internal", `Could not verify purchase: ${(e as Error).message}`);
     }
 
