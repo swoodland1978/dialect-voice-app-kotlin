@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { db, USERS_COLLECTION } from "./firebaseAdmin";
+import { FREE_VOICE_SECONDS, FREE_TEXT_SECONDS } from "./config";
 
 // ElevenLabs' own rule of thumb: ~1000 characters ~= 1 minute of audio. Reused for text too
 // (see TEXT_CREDIT_SECONDS in config.ts) - not literally spoken, just a consistent length
@@ -42,10 +43,12 @@ async function ensureUserDoc(uid: string, email: string | null): Promise<UsageDo
 
   if (!data) {
     try {
+      // Mirrors onUserCreate.ts - if that trigger didn't fire, the user still gets the
+      // one-time free grant here (create() only succeeds once, so it can't double-grant).
       await docRef.create({
         email,
-        creditSecondsRemaining: 0,
-        textSecondsRemaining: 0,
+        creditSecondsRemaining: FREE_VOICE_SECONDS,
+        textSecondsRemaining: FREE_TEXT_SECONDS,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });

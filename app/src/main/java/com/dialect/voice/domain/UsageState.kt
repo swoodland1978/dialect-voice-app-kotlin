@@ -4,11 +4,11 @@ package com.dialect.voice.domain
 // written to directly by the client (see firestore.rules: all writes go through Cloud
 // Functions with the Admin SDK).
 //
-// No subscription, no billing period, no free allowance - two separate running balances in
-// seconds, both granted together (10:1, text:voice) by the same £10.99 purchase, spent
-// independently as each is used, and never resetting or expiring on their own. Kept apart so
-// running out of voice minutes doesn't also cut off text chat - see chatCompletion.ts /
-// synthesizeSpeech.ts.
+// No subscription, no billing period - two separate running balances in seconds, seeded with
+// a one-time free grant on first sign-in (FREE_*_SECONDS in config.ts) and topped up together
+// (10:1, text:voice) by the £8.99 credit purchase, spent independently as each is used, and
+// never resetting or expiring on their own. Kept apart so running out of voice minutes
+// doesn't also cut off text chat - see chatCompletion.ts / synthesizeSpeech.ts.
 data class UserAccountState(
     val creditSecondsRemaining: Int = 0, // voice (ElevenLabs TTS)
     val textSecondsRemaining: Int = 0 // text (OpenAI chat)
