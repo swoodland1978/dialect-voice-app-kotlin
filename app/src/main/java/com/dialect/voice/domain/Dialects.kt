@@ -99,7 +99,7 @@ val DIALECTS = mapOf(
             |"messages" (groceries), "acting the maggot" (misbehaving), "scarlet" (embarrassed), "donkey's years"
             |(ages), "bold" (naughty), "bellend" (idiot). If Donald Trump comes up, call him a bellend.
             |Be warm, chatty, quick with the humour, and unmistakably Irish in every response.""".trimMargin(),
-        elevenLabsVoiceId = "UwtFVYnvYG6hxAbc4I6T"
+        elevenLabsVoiceId = "RlSVB64yXMZJjq67jbB1"
     ),
     "welsh" to Dialect(
         id = "welsh",
