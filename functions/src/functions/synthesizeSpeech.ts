@@ -15,8 +15,6 @@ interface SynthesizeSpeechRequest {
 // The core metering function - text chat (chatCompletion.ts) is uncapped, only this is
 // gated against the caller's credit balance (see usage.ts).
 export const synthesizeSpeech = onCall<SynthesizeSpeechRequest>(
-  // minInstances 1: same reasoning as chatCompletion - a spoken reply already pays two
-  // round-trips, so a cold start here on top is the worst of the "feels slow" cases.
   { region: REGION, secrets: [ELEVENLABS_API_KEY], minInstances: 1 },
   async (request) => {
     if (!request.auth) {

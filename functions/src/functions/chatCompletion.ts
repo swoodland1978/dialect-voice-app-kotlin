@@ -18,9 +18,6 @@ interface ChatCompletionRequest {
 // spoken minutes can still text-chat, and a single purchase can't be stretched into
 // unlimited-forever chat just by never actually playing audio.
 export const chatCompletion = onCall<ChatCompletionRequest>(
-  // minInstances 1: keep one warm so testers/users don't eat a multi-second cold start on
-  // the first message. Cheap for a 256MB instance; drop to 0 if idle cost matters more than
-  // first-hit latency.
   { region: REGION, secrets: [OPENAI_API_KEY], minInstances: 1 },
   async (request) => {
     if (!request.auth) {
