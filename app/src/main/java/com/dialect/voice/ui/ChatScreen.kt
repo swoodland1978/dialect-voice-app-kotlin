@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -62,9 +63,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dialect.voice.R
 import com.dialect.voice.api.ElevenLabsClient
 import com.dialect.voice.api.OpenAIClient
 import com.dialect.voice.billing.BillingManager
@@ -72,6 +75,7 @@ import com.dialect.voice.billing.PurchaseUiState
 import com.dialect.voice.data.UserRepository
 import com.dialect.voice.domain.AudioState
 import com.dialect.voice.domain.DIALECTS
+import com.dialect.voice.domain.ENABLED_DIALECT_IDS
 import com.dialect.voice.domain.Message
 import com.dialect.voice.domain.MessageRole
 import com.dialect.voice.domain.MessageStatus
@@ -178,18 +182,28 @@ fun ChatScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
-                Text(
-                    text = "WhyAI",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo_why_ai),
+                    contentDescription = "WhyAI logo",
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
                 )
-                Text(
-                    text = "v${com.dialect.voice.BuildConfig.VERSION_NAME} (${com.dialect.voice.BuildConfig.VERSION_CODE})",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "WhyAI",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "v${com.dialect.voice.BuildConfig.VERSION_NAME} (${com.dialect.voice.BuildConfig.VERSION_CODE})",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -237,7 +251,8 @@ fun ChatScreen(
                     expanded = dialectDropdownExpanded,
                     onDismissRequest = { dialectDropdownExpanded = false }
                 ) {
-                    DIALECTS.forEach { (key, dialect) ->
+                    ENABLED_DIALECT_IDS.forEach { key ->
+                        val dialect = DIALECTS.getValue(key)
                         DropdownMenuItem(
                             text = {
                                 Column {

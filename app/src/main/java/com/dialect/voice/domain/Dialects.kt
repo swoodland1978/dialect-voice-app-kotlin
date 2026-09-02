@@ -374,4 +374,10 @@ val DIALECTS = mapOf(
     )
 )
 
+// Dialects offered in the picker for the initial release. The other entries above (Irish,
+// Welsh, Indian, Australian) stay fully defined in DIALECTS - prompts, voices, easter eggs and
+// all - so they're a one-line change to bring back later; they're just not shown on the main
+// screen yet.
+val ENABLED_DIALECT_IDS = listOf("geordie", "glaswegian", "scouse", "cockney", "australian")
+
 fun getDialectById(id: String): Dialect? = DIALECTS[id]
