@@ -14,6 +14,7 @@ import com.dialect.voice.audio.RANDOM_EGGS
 import com.dialect.voice.data.UserRepository
 import com.dialect.voice.domain.Dialect
 import com.dialect.voice.domain.DIALECTS
+import com.dialect.voice.domain.ENABLED_DIALECT_IDS
 import com.dialect.voice.domain.AudioState
 import com.dialect.voice.domain.Message
 import com.dialect.voice.domain.MessageRole
@@ -41,7 +42,7 @@ class ChatViewModel(
     private val prefs = appContext.getSharedPreferences("dialect_prefs", Context.MODE_PRIVATE)
 
     private val _selectedDialect = MutableStateFlow(
-        prefs.getString(KEY_SELECTED_DIALECT, null)?.takeIf { DIALECTS.containsKey(it) } ?: DEFAULT_DIALECT_ID
+        prefs.getString(KEY_SELECTED_DIALECT, null)?.takeIf { it in ENABLED_DIALECT_IDS } ?: DEFAULT_DIALECT_ID
     )
     val selectedDialect: StateFlow<String> = _selectedDialect.asStateFlow()
 
@@ -298,7 +299,23 @@ class ChatViewModel(
                     "I'm currently working on a chapter about why my farts smell much better than " +
                     "other people's.\" - reword it naturally in your own voice/accent rather than " +
                     "reciting it verbatim."
-                val fullSystemPrompt = "${dialect.systemPrompt}\n\n$lengthHint\n\n$sparetimeHint"
+                // The model's training data has a fixed cutoff and gets no live/web data here, so
+                // left to itself it'll confidently state whatever was true as of that cutoff (e.g.
+                // a stale head of state) as if it's current fact. Telling it today's actual date
+                // plus to hedge on anything that might have changed since turns that into an
+                // honest "I'm not sure that's still current" in-voice, rather than a confidently
+                // wrong answer.
+                val today = java.time.LocalDate.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy"))
+                val currentAffairsHint = "Today's date is $today. Your training data has a cutoff " +
+                    "date well before this, so you won't know about anything that changed after " +
+                    "it - who currently holds a given office or role, recent news, this year's " +
+                    "events, and so on. If you're asked about something like that and you're not " +
+                    "confident your information is still current, say so honestly in your own " +
+                    "voice/accent instead of confidently stating something that might now be out " +
+                    "of date."
+                val fullSystemPrompt =
+                    "${dialect.systemPrompt}\n\n$lengthHint\n\n$sparetimeHint\n\n$currentAffairsHint"
 
                 val dialectText = openAiClient.convertToDialect(
                     text = userText,
