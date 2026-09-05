@@ -3,6 +3,7 @@ package com.dialect.voice.ui
 import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.media.audiofx.Visualizer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dialect.voice.api.ElevenLabsClient
@@ -22,9 +23,12 @@ import com.dialect.voice.domain.MessageStatus
 import com.dialect.voice.domain.RecordingState
 import com.dialect.voice.domain.UserAccountState
 import com.dialect.voice.domain.getDialectById
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
@@ -55,15 +59,27 @@ class ChatViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    private val _isMuted = MutableStateFlow(false)
-    val isMuted: StateFlow<Boolean> = _isMuted.asStateFlow()
-
     private val _recordingState = MutableStateFlow(RecordingState.IDLE)
     val recordingState: StateFlow<RecordingState> = _recordingState.asStateFlow()
+
+    // Drives the mascot's animation - the voice-only UI has no text/waveform widget of its
+    // own, so these are read directly by AnimatedMascot. isSpeaking is a plain flag (not
+    // derived from the message list) since preset lines like goodbye/upsell aren't tied to
+    // any particular message. playbackAmplitude/recordingAmplitude are normalized 0f..1f.
+    private val _isSpeaking = MutableStateFlow(false)
+    val isSpeaking: StateFlow<Boolean> = _isSpeaking.asStateFlow()
+
+    private val _playbackAmplitude = MutableStateFlow(0f)
+    val playbackAmplitude: StateFlow<Float> = _playbackAmplitude.asStateFlow()
+
+    private val _recordingAmplitude = MutableStateFlow(0f)
+    val recordingAmplitude: StateFlow<Float> = _recordingAmplitude.asStateFlow()
 
     private var mediaPlayer: MediaPlayer? = null
     private var mediaRecorder: MediaRecorder? = null
     private var recordingFile: File? = null
+    private var visualizer: Visualizer? = null
+    private var recordingAmplitudeJob: Job? = null
 
     init {
         playPresetGreeting(_selectedDialect.value, isInitial = true)
@@ -93,14 +109,59 @@ class ChatViewModel(
             status = MessageStatus.DONE
         )
 
-        if (!_isMuted.value) {
-            playAudio(messageId)
+        playAudio(messageId)
+    }
+
+    // Public wrapper so the voice-only UI can let a tap on the mascot interrupt whatever's
+    // currently being spoken (goodbye/upsell/reply/preset - stopPlayback tears down whichever
+    // MediaPlayer is live, not just message-tied playback).
+    fun stopSpeaking() = stopPlayback()
+
+    // Attaches a Visualizer to the given playback session so the mascot can pulse in real
+    // time with the actual audio rather than a canned animation. Best-effort: some
+    // devices/OEMs don't support Visualizer, in which case this silently no-ops and the
+    // mascot just falls back to its idle animation while still playing audio normally.
+    private fun attachVisualizer(audioSessionId: Int) {
+        releaseVisualizer()
+        try {
+            val viz = Visualizer(audioSessionId)
+            viz.captureSize = Visualizer.getCaptureSizeRange()[1]
+            viz.setDataCaptureListener(
+                object : Visualizer.OnDataCaptureListener {
+                    override fun onWaveFormDataCapture(v: Visualizer?, waveform: ByteArray?, samplingRate: Int) {
+                        val data = waveform ?: return
+                        // Unsigned 8-bit PCM centered at 128 - peak deviation from center,
+                        // normalized to 0f..1f, is a cheap but effective loudness proxy.
+                        var maxDeviation = 0
+                        for (b in data) {
+                            val deviation = kotlin.math.abs((b.toInt() and 0xFF) - 128)
+                            if (deviation > maxDeviation) maxDeviation = deviation
+                        }
+                        _playbackAmplitude.value = (maxDeviation / 128f).coerceIn(0f, 1f)
+                    }
+
+                    override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, samplingRate: Int) {}
+                },
+                Visualizer.getMaxCaptureRate() / 2,
+                true,
+                false
+            )
+            viz.enabled = true
+            visualizer = viz
+        } catch (e: Exception) {
+            visualizer = null
         }
     }
 
-    fun setMuted(muted: Boolean) {
-        _isMuted.value = muted
-        if (muted) stopPlayback()
+    private fun releaseVisualizer() {
+        try {
+            visualizer?.enabled = false
+            visualizer?.release()
+        } catch (e: Exception) {
+            // Best-effort teardown - nothing to do if it's already gone.
+        }
+        visualizer = null
+        _playbackAmplitude.value = 0f
     }
 
     fun startRecording() {
@@ -122,6 +183,22 @@ class ChatViewModel(
             mediaRecorder = recorder
             recordingFile = file
             _recordingState.value = RecordingState.RECORDING
+
+            // Poll the recorder's input level so the mascot can visibly "listen" while
+            // someone talks - MediaRecorder has no push-based callback for this, so a short
+            // poll loop is the standard approach.
+            recordingAmplitudeJob = viewModelScope.launch {
+                while (isActive && _recordingState.value == RecordingState.RECORDING) {
+                    val amplitude = try {
+                        mediaRecorder?.maxAmplitude ?: 0
+                    } catch (e: Exception) {
+                        0
+                    }
+                    _recordingAmplitude.value = (amplitude / 32767f).coerceIn(0f, 1f)
+                    delay(60)
+                }
+                _recordingAmplitude.value = 0f
+            }
         } catch (e: Exception) {
             _error.value = "Couldn't start recording"
             mediaRecorder?.release()
@@ -139,6 +216,9 @@ class ChatViewModel(
         }
         mediaRecorder?.release()
         mediaRecorder = null
+        recordingAmplitudeJob?.cancel()
+        recordingAmplitudeJob = null
+        _recordingAmplitude.value = 0f
 
         val file = recordingFile
         recordingFile = null
@@ -200,9 +280,7 @@ class ChatViewModel(
                     showBuyCreditLink = true,
                     status = MessageStatus.DONE
                 )
-                if (!_isMuted.value) {
-                    playAudio(eggMsgId)
-                }
+                playAudio(eggMsgId)
                 return
             }
         }
@@ -224,9 +302,7 @@ class ChatViewModel(
                     presetAudioRes = audioRes,
                     status = MessageStatus.DONE
                 )
-                if (!_isMuted.value) {
-                    playAudio(randomEggMsgId)
-                }
+                playAudio(randomEggMsgId)
                 return
             }
         }
@@ -250,9 +326,7 @@ class ChatViewModel(
                     showBuyCreditLink = true,
                     status = MessageStatus.DONE
                 )
-                if (!_isMuted.value) {
-                    playAudio(noCreditMsgId)
-                }
+                playAudio(noCreditMsgId)
                 return
             }
         }
@@ -326,9 +400,7 @@ class ChatViewModel(
                     it.copy(text = dialectText, status = MessageStatus.DONE)
                 }
 
-                if (!_isMuted.value) {
-                    playAudio(assistantMsgId)
-                }
+                playAudio(assistantMsgId)
             } catch (e: NoTextCreditException) {
                 // Rare race - the pre-flight hasTextCredit check passed but the balance ran
                 // out server-side before this call landed (e.g. a near-simultaneous request).
@@ -342,7 +414,7 @@ class ChatViewModel(
                         status = MessageStatus.DONE
                     )
                 }
-                if (!_isMuted.value && noCredit != null) {
+                if (noCredit != null) {
                     playAudio(assistantMsgId)
                 }
             } catch (e: Exception) {
@@ -426,10 +498,14 @@ class ChatViewModel(
                     setDataSource(file.path)
                     setOnCompletionListener {
                         updateMessage(messageId) { m -> m.copy(audioState = AudioState.READY) }
+                        _isSpeaking.value = false
+                        releaseVisualizer()
                     }
                     prepare()
                     start()
                 }
+                attachVisualizer(mediaPlayer!!.audioSessionId)
+                _isSpeaking.value = true
                 updateMessage(messageId) { it.copy(audioState = AudioState.PLAYING) }
             } catch (e: Exception) {
                 _error.value = "Couldn't play audio"
@@ -445,8 +521,12 @@ class ChatViewModel(
                 ?: throw Exception("Missing preset audio resource")
             player.setOnCompletionListener {
                 updateMessage(messageId) { m -> m.copy(audioState = AudioState.READY) }
+                _isSpeaking.value = false
+                releaseVisualizer()
             }
             mediaPlayer = player
+            attachVisualizer(player.audioSessionId)
+            _isSpeaking.value = true
             player.start()
             updateMessage(messageId) { it.copy(audioState = AudioState.PLAYING) }
         } catch (e: Exception) {
@@ -473,8 +553,12 @@ class ChatViewModel(
                 return
             }
             mediaPlayer = player
+            attachVisualizer(player.audioSessionId)
+            _isSpeaking.value = true
             player.setOnCompletionListener {
                 mediaPlayer = null
+                _isSpeaking.value = false
+                releaseVisualizer()
                 onComplete()
             }
             player.start()
@@ -483,23 +567,31 @@ class ChatViewModel(
         }
     }
 
-    // Free on-device upsell line, spoken in the current dialect's voice, in place of a
-    // silent "buy credit" banner. Not tied to a specific message's audioState - it's a
-    // voiceover alongside the NO_CREDIT bubble, not a replacement for it.
-    private fun playUpsellAudio(dialectId: String) {
+    // Free on-device upsell line, spoken in the current dialect's voice - the voice-only UI
+    // has no "buy credit" text link, so this is called directly whenever the paywall appears
+    // (see ChatScreen) as well as alongside the NO_CREDIT/easter-egg messages above.
+    fun playUpsellAudio(dialectId: String) {
         val upsellRes = PRESET_AUDIO[dialectId]?.noCredit?.audioRes ?: return
         try {
             val player = MediaPlayer.create(appContext, upsellRes) ?: return
             mediaPlayer = player
+            attachVisualizer(player.audioSessionId)
+            _isSpeaking.value = true
+            player.setOnCompletionListener {
+                _isSpeaking.value = false
+                releaseVisualizer()
+            }
             player.start()
         } catch (e: Exception) {
-            // Best-effort voiceover - falling back to the silent banner is fine.
+            // Best-effort voiceover - the visual paywall still works without it.
         }
     }
 
     private fun stopPlayback() {
         mediaPlayer?.release()
         mediaPlayer = null
+        releaseVisualizer()
+        _isSpeaking.value = false
         _messages.value = _messages.value.map {
             if (it.audioState == AudioState.PLAYING) it.copy(audioState = AudioState.READY) else it
         }
@@ -517,6 +609,7 @@ class ChatViewModel(
     override fun onCleared() {
         super.onCleared()
         stopPlayback()
+        recordingAmplitudeJob?.cancel()
         try {
             mediaRecorder?.stop()
         } catch (e: Exception) {

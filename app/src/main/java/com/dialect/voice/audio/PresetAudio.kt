@@ -5,13 +5,13 @@ import com.dialect.voice.R
 // Bundled on-device audio for moments we speak to the user without hitting the paid
 // ElevenLabs API: first app open, switching accent, pitching someone with no TTS credit
 // left (whether they've never unlocked voice or unlocked it and used up their balance - the
-// spoken line is generic enough to cover both; the clickable text underneath it differs, see
-// ChatScreen's AudioControl), signing out, and the "what can you say" easter egg (see
-// ChatViewModel.EASTER_EGG_TRIGGERS). Text is shown in the chat bubble (or, for
-// noCredit/goodbye, just spoken - see ChatViewModel.playUpsellAudio / playGoodbye) as-is;
-// audioRes points at a raw resource that must actually say the same thing in that dialect's
-// voice - swap the placeholder files in res/raw/ for real recordings, keeping these exact
-// filenames.
+// spoken line is generic enough to cover both), signing out, and the "what can you say"
+// easter egg (see ChatViewModel.EASTER_EGG_TRIGGERS). The UI is voice-only/textless (see
+// ChatScreen's AnimatedMascot and PaywallScreen) so `text` here isn't rendered anywhere -
+// it exists purely as the source-of-truth transcript the audioRes must actually say, and as
+// a reference when re-recording. audioRes points at a raw resource that must actually say
+// the same thing in that dialect's voice - swap the placeholder files in res/raw/ for real
+// recordings, keeping these exact filenames.
 data class PresetPrompt(val text: String, val audioRes: Int)
 
 data class PresetGreeting(

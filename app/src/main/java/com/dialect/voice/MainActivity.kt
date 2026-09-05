@@ -3,6 +3,7 @@ package com.dialect.voice
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -20,6 +21,8 @@ import com.dialect.voice.auth.AuthManager
 import com.dialect.voice.billing.BillingManager
 import com.dialect.voice.data.UserRepository
 import com.dialect.voice.ui.ChatScreen
+import com.dialect.voice.ui.ChatViewModel
+import com.dialect.voice.ui.WelcomeSplashScreen
 import com.dialect.voice.ui.auth.SignInScreen
 import com.dialect.voice.ui.theme.DialectVoiceTheme
 import com.google.firebase.functions.FirebaseFunctions
@@ -30,6 +33,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var billingManager: BillingManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must be called before super.onCreate() - this is what lets Theme.DialectVoice.Starting
+        // hand off to postSplashScreenTheme once Compose actually has something to draw.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         // No more embedded API keys - OpenAI/ElevenLabs calls go through Cloud Functions,
@@ -82,14 +88,40 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        ChatScreen(
-                            openAiClient = openAiClient,
-                            elevenLabsClient = elevenLabsClient,
-                            userRepository = userRepository,
-                            billingManager = billingManager,
-                            audioCacheDir = cacheDir,
-                            onSignOut = { authManager.signOut() }
-                        )
+                        // Local val, asserted non-null - currentUser itself is a delegated
+                        // property (collectAsState), so even a single read of it doesn't pick
+                        // up the enclosing null-check as a smart cast; we're inside the
+                        // `else` of `if (currentUser == null)` so this is safe.
+                        val user = currentUser!!
+                        // Constructed here (once per sign-in, keyed on uid) rather than inside
+                        // ChatScreen's default parameter, so WelcomeSplashScreen and ChatScreen
+                        // share the exact same instance - the welcome greeting fires once, in
+                        // its init block, and the splash is just listening in on that same
+                        // playback rather than triggering a second one of its own.
+                        val chatViewModel = remember(user.uid) {
+                            ChatViewModel(
+                                openAiClient, elevenLabsClient, userRepository, cacheDir,
+                                applicationContext
+                            )
+                        }
+                        var showWelcome by remember(user.uid) { mutableStateOf(true) }
+
+                        if (showWelcome) {
+                            WelcomeSplashScreen(
+                                viewModel = chatViewModel,
+                                onFinished = { showWelcome = false }
+                            )
+                        } else {
+                            ChatScreen(
+                                openAiClient = openAiClient,
+                                elevenLabsClient = elevenLabsClient,
+                                userRepository = userRepository,
+                                billingManager = billingManager,
+                                audioCacheDir = cacheDir,
+                                onSignOut = { authManager.signOut() },
+                                viewModel = chatViewModel
+                            )
+                        }
                     }
                 }
             }
