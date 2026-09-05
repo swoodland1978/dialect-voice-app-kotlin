@@ -432,9 +432,25 @@ fun AnimatedMascot(
         ),
         label = "busy"
     )
+    // Guaranteed baseline for isSpeaking - real Visualizer data has a bit of startup latency
+    // before its first capture arrives, so a short preset clip (welcome/switch/upsell lines)
+    // can finish playing before real data ever shows up, leaving the mascot looking static
+    // the whole time despite audio genuinely playing. This talking-pulse means speech always
+    // visibly animates the instant it starts; real amplitude data (which does work well for
+    // longer replies - already confirmed on-device) still shows through on top since it
+    // regularly exceeds this baseline during louder moments.
+    val talkingPulse by infinite.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.75f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(380, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "talking"
+    )
 
     val targetAmplitude = when {
-        isSpeaking -> playbackAmplitude
+        isSpeaking -> maxOf(playbackAmplitude, talkingPulse)
         isRecording -> recordingAmplitude
         isBusy -> busyPulse * 0.55f
         else -> idlePulse * 0.12f
@@ -578,9 +594,21 @@ fun AudioWaveform(
         ),
         label = "busy"
     )
+    // Same guaranteed baseline as AnimatedMascot's talkingPulse (see there for why) - keeps
+    // the bars visibly moving the instant speech starts even on a short preset clip where
+    // real Visualizer data might not arrive in time to matter.
+    val talkingPulse by infinite.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.75f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(380, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "talking"
+    )
 
     val currentAmplitude = when {
-        isSpeaking -> playbackAmplitude
+        isSpeaking -> maxOf(playbackAmplitude, talkingPulse)
         isRecording -> recordingAmplitude
         isBusy -> busyPulse * 0.55f
         else -> idlePulse * 0.12f
