@@ -45,6 +45,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,6 +63,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -111,6 +113,21 @@ fun ChatScreen(
     val priceText by billingManager.priceText.collectAsState()
     val micPermissionState = rememberPermissionState(android.Manifest.permission.RECORD_AUDIO)
     val activity = LocalContext.current as Activity
+
+    // Android throttles/blocks an app's network access once the screen goes idle, even while
+    // the Activity is still technically in front (confirmed via dumpsys netpolicy during
+    // testing: proc state drops out of TOP and network gets blocked shortly after the screen
+    // dims). Recording your voice or waiting on a reply doesn't itself count as "activity" to
+    // the OS, so someone who asks a question and sets the phone down could have the request
+    // silently killed mid-flight by the time the reply/audio would arrive - no error, just
+    // nothing ever happens. Keeping the screen on for exactly this window closes that gap
+    // without keeping it on all the time the app's just sitting idle.
+    val view = LocalView.current
+    val keepAwake = isLoading || isSpeaking || recordingState != RecordingState.IDLE
+    DisposableEffect(keepAwake) {
+        view.keepScreenOn = keepAwake
+        onDispose { view.keepScreenOn = false }
+    }
 
     var inputText by remember { mutableStateOf("") }
 
@@ -650,8 +667,18 @@ fun UsageBanner(accountState: UserAccountState) {
             shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surfaceVariant
         ) {
+            val seconds = accountState.creditSecondsRemaining
+            // Minutes reads better most of the time, but integer division on anything under a
+            // minute always showed "0 min left" - indistinguishable from actually being out of
+            // credit. Switching to seconds for that last stretch keeps it accurate exactly
+            // when the balance matters most (right before it runs out).
+            val label = if (seconds < 60) {
+                "$seconds sec of voice credit left"
+            } else {
+                "${seconds / 60} min of voice credit left"
+            }
             Text(
-                text = "${accountState.creditSecondsRemaining / 60} min of voice credit left",
+                text = label,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
