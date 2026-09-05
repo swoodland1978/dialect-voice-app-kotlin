@@ -101,10 +101,8 @@ fun PaywallScreen(
             if (showDetails) {
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(
-                    "30 minutes of spoken AI replies in your chosen regional accent, plus " +
-                        "plenty of extra chat time once that runs out - all included in the " +
-                        "one price. No subscription - credit never expires, and you can top " +
-                        "up any time.",
+                    "30 minutes of spoken AI replies in your chosen regional accent. " +
+                        "No subscription - credit never expires, and you can top up any time.",
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
