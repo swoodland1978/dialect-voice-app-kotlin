@@ -1,5 +1,6 @@
 package com.dialect.voice.ui.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -14,8 +16,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.dialect.voice.R
 
 @Composable
 fun SignInScreen(
@@ -25,8 +29,14 @@ fun SignInScreen(
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("WhyAI", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
+            // The badge already carries the "WHY AI" wordmark, so it replaces the old plain
+            // text title rather than sitting alongside a redundant one.
+            Image(
+                painter = painterResource(id = R.drawable.logo_why_ai),
+                contentDescription = "WhyAI",
+                modifier = Modifier.size(160.dp).clip(CircleShape)
+            )
+            Spacer(modifier = Modifier.height(20.dp))
             Text(
                 "Sign in to chat with a regional AI voice",
                 style = MaterialTheme.typography.bodyMedium,

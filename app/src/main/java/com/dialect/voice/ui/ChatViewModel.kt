@@ -32,6 +32,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
+import kotlin.math.pow
 
 class ChatViewModel(
     private val openAiClient: OpenAIClient,
@@ -130,14 +131,26 @@ class ChatViewModel(
                 object : Visualizer.OnDataCaptureListener {
                     override fun onWaveFormDataCapture(v: Visualizer?, waveform: ByteArray?, samplingRate: Int) {
                         val data = waveform ?: return
-                        // Unsigned 8-bit PCM centered at 128 - peak deviation from center,
-                        // normalized to 0f..1f, is a cheap but effective loudness proxy.
-                        var maxDeviation = 0
+                        // Unsigned 8-bit PCM centered at 128. Peak deviation (the original
+                        // approach here) barely moves for normal speech - a single loud
+                        // sample anywhere in the capture window pins it near max almost the
+                        // whole time it's talking. RMS (average loudness across the window)
+                        // tracks moment-to-moment loudness far better. REFERENCE_RMS is
+                        // calibrated against real measured values from this pipeline (logged
+                        // during debugging: ordinary ElevenLabs speech sits around 0.30-0.48
+                        // RMS, not the much-quieter range a generic guess assumed - that
+                        // earlier guess divided by a reference several times too small, which
+                        // pinned everything near 1.0 instead of fixing it). This only changes
+                        // how loud audio is *drawn*, not how loud it *plays*.
+                        var sumSquares = 0.0
                         for (b in data) {
-                            val deviation = kotlin.math.abs((b.toInt() and 0xFF) - 128)
-                            if (deviation > maxDeviation) maxDeviation = deviation
+                            val deviation = (b.toInt() and 0xFF) - 128
+                            sumSquares += (deviation * deviation).toDouble()
                         }
-                        _playbackAmplitude.value = (maxDeviation / 128f).coerceIn(0f, 1f)
+                        val rms = kotlin.math.sqrt(sumSquares / data.size) / 128.0
+                        val normalized = (rms / REFERENCE_RMS).coerceIn(0.0, 1.0)
+                        val expanded = normalized.pow(0.7)
+                        _playbackAmplitude.value = expanded.toFloat().coerceIn(0f, 1f)
                     }
 
                     override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, samplingRate: Int) {}
@@ -636,6 +649,14 @@ class ChatViewModel(
     companion object {
         private const val KEY_SELECTED_DIALECT = "selected_dialect"
         private const val DEFAULT_DIALECT_ID = "geordie"
+        // See attachVisualizer - the RMS value (0f..1f of full scale) a genuinely loud moment
+        // in normal TTS speech is expected to reach. Measured empirically (temporary Log.d
+        // instrumentation against real ElevenLabs playback on-device): ordinary speech sits
+        // around 0.30-0.48, not the much lower value an untested guess assumed - that guess
+        // pinned everything near 1.0 instead of fixing the saturation it was meant to fix.
+        // Tune up if the mascot/waveform still looks pinned near max during ordinary talking,
+        // or down if it now barely moves.
+        private const val REFERENCE_RMS = 0.55
         private val EASTER_EGG_TRIGGERS = setOf(
             "what sort of things do you say",
             "what sort of things can you say",
