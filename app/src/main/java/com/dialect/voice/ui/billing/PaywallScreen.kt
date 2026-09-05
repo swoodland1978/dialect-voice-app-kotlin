@@ -1,16 +1,16 @@
 package com.dialect.voice.ui.billing
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,86 +25,110 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.dialect.voice.billing.PurchaseUiState
+import com.dialect.voice.ui.AnimatedMascot
 
-// One product, one price: 30 minutes of spoken replies, plus a generously large (10x, ~5
-// hours) text-only chat allowance bundled in at no extra cost - see UsageState.kt /
-// config.ts's TEXT_CREDIT_SECONDS. No subscription, no separate unlock step - buy again any
-// time you run out, credit just stacks and never expires. Led with the price/value up front
-// (headline price + an expandable info affordance) rather than a wall of text, so it reads as
-// an inviting offer rather than a pay-per-minute utility. Shown both as an automatic prompt
-// right after sign-in and reactively whenever someone with no credit taps to hear a reply.
-// priceText is Play Billing's own locale-formatted price (e.g. "£10.99") - never hardcoded
-// here, so it can't go stale when the price changes in Play Console.
+// Mostly visual + audio - the offer itself is spoken (ChatViewModel.playUpsellAudio,
+// triggered by ChatScreen the moment this screen appears) in the current dialect's voice,
+// same as every other on-device preset line. Price + an expandable "what's included" line
+// are still shown though - people want to actually see what they're buying before tapping
+// buy, not just hear it once, so that disclosure lives here as well as in Play Billing's own
+// system purchase sheet.
 @Composable
 fun PaywallScreen(
     purchaseState: PurchaseUiState,
     priceText: String?,
-    onPurchaseClick: () -> Unit
+    isSpeaking: Boolean,
+    playbackAmplitude: Float,
+    onPurchaseClick: () -> Unit,
+    onClose: () -> Unit
 ) {
+    val isVerifying = purchaseState is PurchaseUiState.Verifying
+    val hasError = purchaseState is PurchaseUiState.Error
     var showDetails by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Unlock WhyAI", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "A full AI that answers back in your own accent - properly in character, not just a voice filter.",
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            AnimatedMascot(
+                isSpeaking = isSpeaking,
+                isRecording = false,
+                isBusy = isVerifying,
+                hasError = hasError,
+                playbackAmplitude = playbackAmplitude,
+                recordingAmplitude = 0f,
+                onTap = {}
             )
-            Spacer(modifier = Modifier.height(24.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    priceText ?: "…",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(onClick = { showDetails = !showDetails }, modifier = Modifier.size(28.dp)) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = "What's included",
-                        modifier = Modifier.size(16.dp)
+
+            Spacer(modifier = Modifier.size(24.dp))
+
+            Button(onClick = onPurchaseClick, enabled = !isVerifying) {
+                if (isVerifying) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
-                }
-            }
-            if (showDetails) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Around 5 hours of text chat, plus 30 minutes of spoken AI replies in " +
-                        "your chosen regional accent - both included in the one price. " +
-                        "No subscription - credit never expires, and you can top up any time.",
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(onClick = onPurchaseClick, enabled = purchaseState !is PurchaseUiState.Verifying) {
-                if (purchaseState is PurchaseUiState.Verifying) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.size(8.dp))
                     Text("Verifying…")
                 } else {
                     Text("Buy credit")
                 }
             }
-            if (purchaseState is PurchaseUiState.Error) {
-                Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.size(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    purchaseState.message,
+                    priceText ?: "…",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                IconButton(onClick = { showDetails = !showDetails }, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = "What's included",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
+            if (showDetails) {
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    "30 minutes of spoken AI replies in your chosen regional accent. " +
+                        "No subscription - credit never expires, and you can top up any time.",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp)
+                )
+            }
+
+            if (hasError) {
+                Spacer(modifier = Modifier.size(16.dp))
+                Text(
+                    "Something went wrong - try again",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+        }
+
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.padding(8.dp).align(Alignment.TopStart)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "Close",
+                tint = MaterialTheme.colorScheme.onBackground
+            )
         }
     }
 }

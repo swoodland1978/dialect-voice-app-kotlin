@@ -4,4 +4,22 @@
         <item name="android:windowFullscreen">false</item>
         <item name="android:fitsSystemWindows">true</item>
     </style>
+
+    <!-- Cold-start theme, set on MainActivity in the manifest. androidx.core:core-splashscreen
+         backports this down to minSdk 26 (native support is API 31+): shows a launcher-icon
+         frame the instant the process launches, before Compose/Firebase are ready, then
+         installSplashScreen() in MainActivity swaps back to postSplashScreenTheme on the
+         first frame. AnimatedSplashScreen.kt then plays the actual entrance animation in
+         Compose - this theme only covers the gap this library can close that Compose cannot
+         (there's nothing to recompose yet at this point).
+         No windowSplashScreenAnimatedIcon override here deliberately - that attribute makes
+         the OS apply its own icon masking on top of whatever's supplied, which cropped our
+         circular badge artwork oddly. Omitting it falls back to the adaptive launcher icon
+         (mipmap/ic_launcher), which is already correctly scaled to survive that masking (see
+         ic_launcher_foreground.png). Background is plain white to match
+         AnimatedSplashScreen.kt exactly, so the handoff between the two is invisible. -->
+    <style name="Theme.DialectVoice.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/white</item>
+        <item name="postSplashScreenTheme">@style/Theme.DialectVoice</item>
+    </style>
 </resources>

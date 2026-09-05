@@ -84,6 +84,11 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.8.0")
+    // Cold-start splash (Theme.DialectVoice.Starting in themes.xml) - backports the Android
+    // 12 SplashScreen API down to minSdk 26 so there's a branded screen instead of a blank
+    // white flash before Compose/Firebase are up. AnimatedSplashScreen.kt then takes over
+    // with the actual custom animation once Compose renders.
+    implementation("androidx.core:core-splashscreen:1.0.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 

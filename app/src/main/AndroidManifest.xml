@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- Normal permission (no runtime prompt) - needed to attach a Visualizer to the
+         playback session so the mascot's pulse/soundwave animation can react to the actual
+         audio in real time instead of a canned animation. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application
         android:allowBackup="true"
@@ -20,7 +24,7 @@
             android:exported="true"
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden|keyboard"
-            android:theme="@style/Theme.DialectVoice">
+            android:theme="@style/Theme.DialectVoice.Starting">
             <!-- Locked to portrait: chat state lives in a plain remembered ViewModel in
                  setContent, so an activity recreation wipes the conversation. configChanges
                  also absorbs any forced rotation without recreating. -->
