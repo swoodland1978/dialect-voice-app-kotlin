@@ -65,7 +65,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.dialect.voice.R
 import com.dialect.voice.api.ElevenLabsClient
@@ -76,6 +81,7 @@ import com.dialect.voice.data.UserRepository
 import com.dialect.voice.domain.AudioState
 import com.dialect.voice.domain.DIALECTS
 import com.dialect.voice.domain.ENABLED_DIALECT_IDS
+import com.dialect.voice.domain.MessageRole
 import com.dialect.voice.domain.RecordingState
 import com.dialect.voice.domain.UserAccountState
 import com.dialect.voice.ui.billing.PaywallScreen
@@ -227,6 +233,8 @@ fun ChatScreen(
             }
 
             UsageBanner(accountState = accountState)
+
+            LastQuestion(text = messages.lastOrNull { it.role == MessageRole.USER }?.text)
 
             Box(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -675,6 +683,33 @@ fun ThinkingIndicator(isThinking: Boolean, modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+// The one bit of the old text transcript that's actually missed in the voice-only redesign -
+// with nothing else on screen, there was no way to check what you'd just asked once you'd
+// sent it. Shows only the most recent typed/spoken question (not a running history - that's
+// what the mascot/audio are for), capped at 3 lines so a long question doesn't crowd out the
+// mascot; anything past that is cut off with an ellipsis rather than pushing the layout around.
+@Composable
+fun LastQuestion(text: String?) {
+    if (text.isNullOrBlank()) return
+
+    Text(
+        text = buildAnnotatedString {
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)) {
+                append("You: ")
+            }
+            append(text)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onBackground,
+        textAlign = TextAlign.Center,
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 // Restored from the pre-redesign screen - shown only when there's an actual balance to

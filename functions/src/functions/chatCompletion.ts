@@ -48,6 +48,11 @@ export const chatCompletion = onCall<ChatCompletionRequest>(
     try {
       text = await callOpenAiChat(OPENAI_API_KEY.value(), userText, systemPrompt);
     } catch (e) {
+      // Logged here specifically because it wasn't before - the only way to previously tell
+      // *why* a request failed was to reverse-engineer it from HTTP status codes in the Cloud
+      // Run request logs, since the real error message only ever went to the client. Now it's
+      // one console.error away in the function's own logs.
+      console.error("chatCompletion: callOpenAiChat failed", e);
       // Failed call never burns credit.
       throw new HttpsError("internal", (e as Error).message);
     }

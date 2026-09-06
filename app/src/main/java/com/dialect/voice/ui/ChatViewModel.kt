@@ -394,9 +394,15 @@ class ChatViewModel(
                 // wrong answer.
                 val today = java.time.LocalDate.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("d MMMM yyyy"))
+                // A hard-coded specific correction (spelling out who the current US president
+                // is) was tried here and deliberately removed - it's a maintenance trap that
+                // goes stale at the next election/inauguration exactly like the problem it was
+                // patching. The real fix was switching the model itself (openaiProxy.ts) to one
+                // with a materially more recent knowledge cutoff; this hedge is the
+                // general-purpose safety net for whatever's still after that cutoff.
                 val currentAffairsHint = "Today's date is $today. Your training data has a cutoff " +
-                    "date well before this, so you won't know about anything that changed after " +
-                    "it - who currently holds a given office or role, recent news, this year's " +
+                    "date before this, so you won't know about anything that changed after it - " +
+                    "who currently holds a given office or role, recent news, this year's " +
                     "events, and so on. If you're asked about something like that and you're not " +
                     "confident your information is still current, say so honestly in your own " +
                     "voice/accent instead of confidently stating something that might now be out " +
