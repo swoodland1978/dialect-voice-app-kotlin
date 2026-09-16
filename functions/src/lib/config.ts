@@ -5,11 +5,12 @@ export const REGION = "us-central1";
 export const CREDIT_PRODUCT_ID = "dialect_voice_credit_30min"; // £8.99
 export const CREDIT_SECONDS = 30 * 60; // 30 min of TTS (voice) credit granted per purchase
 
-// Free credit granted once, on first sign-in (see onUserCreate.ts). Lets a new user - and a
-// Play reviewer - actually try the app before hitting the paywall. Simple flat grant for
-// now; not abuse-hardened (clearing app data + a new Google account gets another grant).
-export const FREE_VOICE_SECONDS = 5 * 60; // 5 min of voice
-export const FREE_TEXT_SECONDS = FREE_VOICE_SECONDS * 10; // 50 min of text, same ratio as a purchase
+// Free credit granted once, on first sign-in (see onUserCreate.ts). Was a flat testing grant
+// to let a new user - or a Play reviewer - try the app before hitting the paywall; set to 0
+// now that testing is done, so new installs start with no credit and hit the no-credit preset
+// response (see PresetAudio.kt / ChatViewModel.kt) on their first request.
+export const FREE_VOICE_SECONDS = 0;
+export const FREE_TEXT_SECONDS = 0;
 
 // Text chat (chatCompletion.ts) is metered separately from voice, on its own much larger
 // allowance - OpenAI's per-message cost is roughly 1/500th of ElevenLabs' TTS cost, so a 10x
