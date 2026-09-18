@@ -26,11 +26,6 @@ export type CapacityCheck =
   | { ok: true; remainingSeconds: number }
   | { ok: false; reason: "no_credit"; remainingSeconds: number };
 
-// DEV ALLOWLIST - these accounts get unmetered access (both meters) regardless of balance,
-// so the app owner can test without paying. Everyone else still goes through the normal
-// checks below. Remove this once real billing is fully tested end-to-end.
-const DEV_BYPASS_EMAILS = new Set<string>([]);
-
 type MeterField = "creditSecondsRemaining" | "textSecondsRemaining";
 
 // Self-heals accounts where the onCreate trigger didn't run for whatever reason. .create()
@@ -74,10 +69,6 @@ async function checkMeter(
   field: MeterField
 ): Promise<CapacityCheck> {
   const data = await ensureUserDoc(uid, email);
-
-  if (data?.email && DEV_BYPASS_EMAILS.has(data.email)) {
-    return { ok: true, remainingSeconds: Number.MAX_SAFE_INTEGER };
-  }
 
   const remaining = data?.[field] ?? 0;
   if (estimatedSeconds > remaining) {

@@ -407,8 +407,21 @@ class ChatViewModel(
                     "confident your information is still current, say so honestly in your own " +
                     "voice/accent instead of confidently stating something that might now be out " +
                     "of date."
+                // Deliberate bit, takes priority over currentAffairsHint above whenever the ask is
+                // "the news"/current affairs in general (as opposed to a specific fact like who
+                // holds some office, which currentAffairsHint still covers) - a canned rant instead
+                // of an actual news discussion, in the same "reword, don't recite" pattern as
+                // sparetimeHint.
+                val newsHint = "If someone asks about the news, current affairs, or what's going on " +
+                    "in the world generally, don't actually discuss the news - instead say something " +
+                    "like: \"The news is just like a dog wearing elastic lady pants while juggling " +
+                    "flaming coconuts. I don't need to explain that, you know what I mean. It makes " +
+                    "me so angry I could squash a tangerine with my fanny - I could squash so many " +
+                    "you could serve a glass of OJ to a family of four.\" - reword it naturally in " +
+                    "your own voice/accent rather than reciting it verbatim, keeping the same daft, " +
+                    "worked-up energy."
                 val fullSystemPrompt =
-                    "${dialect.systemPrompt}\n\n$lengthHint\n\n$sparetimeHint\n\n$currentAffairsHint"
+                    "${dialect.systemPrompt}\n\n$lengthHint\n\n$sparetimeHint\n\n$currentAffairsHint\n\n$newsHint"
 
                 val dialectText = openAiClient.convertToDialect(
                     text = userText,
