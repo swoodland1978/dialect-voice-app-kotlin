@@ -18,7 +18,7 @@ interface ChatCompletionRequest {
 // spoken minutes can still text-chat, and a single purchase can't be stretched into
 // unlimited-forever chat just by never actually playing audio.
 export const chatCompletion = onCall<ChatCompletionRequest>(
-  { region: REGION, secrets: [OPENAI_API_KEY], minInstances: 1 },
+  { region: REGION, secrets: [OPENAI_API_KEY] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");

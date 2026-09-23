@@ -15,7 +15,7 @@ interface SynthesizeSpeechRequest {
 // The core metering function - text chat (chatCompletion.ts) is uncapped, only this is
 // gated against the caller's credit balance (see usage.ts).
 export const synthesizeSpeech = onCall<SynthesizeSpeechRequest>(
-  { region: REGION, secrets: [ELEVENLABS_API_KEY], minInstances: 1 },
+  { region: REGION, secrets: [ELEVENLABS_API_KEY] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Sign in required");
