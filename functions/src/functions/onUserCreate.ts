@@ -15,8 +15,6 @@ export const onUserCreate = functionsV1
       .collection(USERS_COLLECTION)
       .doc(user.uid)
       .set({
-        email: user.email ?? null,
-        displayName: user.displayName ?? null,
         creditSecondsRemaining: FREE_VOICE_SECONDS,
         textSecondsRemaining: FREE_TEXT_SECONDS,
         createdAt: FieldValue.serverTimestamp(),

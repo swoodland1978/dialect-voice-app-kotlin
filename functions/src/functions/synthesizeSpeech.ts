@@ -29,7 +29,7 @@ export const synthesizeSpeech = onCall<SynthesizeSpeechRequest>(
 
     const t0 = Date.now();
     const estimatedSeconds = estimateSeconds(text);
-    const capacity = await checkCapacity(uid, estimatedSeconds, request.auth.token.email ?? null);
+    const capacity = await checkCapacity(uid, estimatedSeconds);
     const tCheck = Date.now();
 
     if (!capacity.ok) {

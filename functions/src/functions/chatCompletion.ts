@@ -35,7 +35,7 @@ export const chatCompletion = onCall<ChatCompletionRequest>(
     // Estimated off the incoming message, same char-based proxy as voice - good enough to
     // gate on before the real reply (whose actual length isn't known yet) exists.
     const estimatedSeconds = estimateSeconds(userText);
-    const capacity = await checkTextCapacity(uid, estimatedSeconds, request.auth.token.email ?? null);
+    const capacity = await checkTextCapacity(uid, estimatedSeconds);
     const tCheck = Date.now();
 
     if (!capacity.ok) {

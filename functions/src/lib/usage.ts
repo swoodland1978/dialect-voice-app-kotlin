@@ -12,7 +12,6 @@ export function estimateSeconds(text: string): number {
 }
 
 export interface UsageDoc {
-  email?: string | null;
   // Two separate running balances in seconds, both granted together by the same purchase
   // (see verifyPurchase.ts / config.ts) and never resetting or expiring on their own - no
   // subscription, no billing period, no free allowance. Kept apart specifically so a muted
@@ -31,7 +30,7 @@ type MeterField = "creditSecondsRemaining" | "textSecondsRemaining";
 // Self-heals accounts where the onCreate trigger didn't run for whatever reason. .create()
 // is idempotent against a concurrent duplicate (ALREADY_EXISTS is swallowed, the doc just
 // gets re-read below).
-async function ensureUserDoc(uid: string, email: string | null): Promise<UsageDoc | undefined> {
+async function ensureUserDoc(uid: string): Promise<UsageDoc | undefined> {
   const docRef = db.collection(USERS_COLLECTION).doc(uid);
   let snap = await docRef.get();
   let data = snap.data() as UsageDoc | undefined;
@@ -41,7 +40,6 @@ async function ensureUserDoc(uid: string, email: string | null): Promise<UsageDo
       // Mirrors onUserCreate.ts - if that trigger didn't fire, the user still gets the
       // one-time free grant here (create() only succeeds once, so it can't double-grant).
       await docRef.create({
-        email,
         creditSecondsRemaining: FREE_VOICE_SECONDS,
         textSecondsRemaining: FREE_TEXT_SECONDS,
         createdAt: FieldValue.serverTimestamp(),
@@ -65,10 +63,9 @@ async function ensureUserDoc(uid: string, email: string | null): Promise<UsageDo
 async function checkMeter(
   uid: string,
   estimatedSeconds: number,
-  email: string | null,
   field: MeterField
 ): Promise<CapacityCheck> {
-  const data = await ensureUserDoc(uid, email);
+  const data = await ensureUserDoc(uid);
 
   const remaining = data?.[field] ?? 0;
   if (estimatedSeconds > remaining) {
@@ -78,12 +75,12 @@ async function checkMeter(
   return { ok: true, remainingSeconds: remaining - estimatedSeconds };
 }
 
-export function checkCapacity(uid: string, estimatedSeconds: number, email: string | null): Promise<CapacityCheck> {
-  return checkMeter(uid, estimatedSeconds, email, "creditSecondsRemaining");
+export function checkCapacity(uid: string, estimatedSeconds: number): Promise<CapacityCheck> {
+  return checkMeter(uid, estimatedSeconds, "creditSecondsRemaining");
 }
 
-export function checkTextCapacity(uid: string, estimatedSeconds: number, email: string | null): Promise<CapacityCheck> {
-  return checkMeter(uid, estimatedSeconds, email, "textSecondsRemaining");
+export function checkTextCapacity(uid: string, estimatedSeconds: number): Promise<CapacityCheck> {
+  return checkMeter(uid, estimatedSeconds, "textSecondsRemaining");
 }
 
 // Only call these after the underlying API call has actually succeeded - never charge for a
